@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escaner de Etiquetas - Gestión de Ropa</title>
+    <style>
+        :root {
+            --primary: #4a6fa5;
+            --secondary: #166088;
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --light: #f8f9fa;
+            --dark: #343a40;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        
+        header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            margin: 5px;
+        }
+        
+        .btn:hover {
+            background: var(--secondary);
+            transform: translateY(-2px);
+        }
+        
+        .btn-success {
+            background: var(--success);
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: var(--dark);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .scanner-container {
+            width: 100%;
+            height: 300px;
+            background: #eee;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        
+        #scanner-video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 2px solid var(--primary);
+            box-sizing: border-box;
+        }
+        
+        .scanner-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: var(--success);
+            animation: scan 2s infinite linear;
+        }
+        
+        @keyframes scan {
+            0% { top: 0; }
+            100% { top: 100%; }
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .sold {
+            background-color: var(--success);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .available {
+            background-color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        .tables-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .table-item {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid #ddd;
+            min-width: 200px;
+        }
+        
+        .table-item:hover {
+            background: #e9ecef;
+            transform: translateY(-3px);
+        }
+        
+        .alert {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+            color: white;
+        }
+        
+        .alert-success {
+            background: var(--success);
+        }
+        
+        .alert-danger {
+            background: var(--danger);
+        }
+        
+        .alert-warning {
+            background: var(--warning);
+            color: var(--dark);
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .action-buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 20px;
+            color: #666;
+        }
+        
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            .action-buttons {
+                flex-direction: column;
+            }
+            
+            .btn {
+                width: 100%;
+                margin: 5px 0;
+            }
+            
+            table {
+                font-size: 12px;
+            }
+            
+            th, td {
+                padding: 8px 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Gestión de Inventario de Ropa</h1>
+            <p>Escanea etiquetas y gestiona tu inventario fácilmente</p>
+        </header>
+        
+        <div id="main-menu" class="card">
+            <h2>Menú Principal</h2>
+            <div class="action-buttons">
+                <button id="create-table-btn" class="btn">Crear Nueva Tabla</button>
+                <button id="view-tables-btn" class="btn">Ver Tablas Existentes</button>
+                <button id="scan-btn" class="btn">Escanear Productos</button>
+            </div>
+        </div>
+        
+        <div id="create-table-section" class="card hidden">
+            <h2>Crear Nueva Tabla</h2>
+            <div class="form-group">
+                <label for="table-name">Nombre de la Tabla:</label>
+                <input type="text" id="table-name" placeholder="Ej: Colección Verano 2023">
+            </div>
+            <button id="confirm-create-table" class="btn btn-success">Crear Tabla</button>
+            <button id="cancel-create-table" class="btn btn-danger">Cancelar</button>
+        </div>
+        
+        <div id="tables-list-section" class="card hidden">
+            <h2>Tablas Existentes</h2>
+            <div id="tables-container" class="tables-list">
+                <!-- Las tablas existentes se mostrarán aquí -->
+            </div>
+            <button id="back-from-tables" class="btn">Volver al Menú</button>
+        </div>
+        
+        <div id="scanner-section" class="card hidden">
+            <h2>Escaneo de Productos</h2>
+            <div class="action-buttons">
+                <button id="scan-product-btn" class="btn">Escanear Producto</button>
+                <button id="scan-sale-btn" class="btn btn-success">Escanear Venta</button>
+                <button id="back-from-scanner" class="btn btn-danger">Volver</button>
+            </div>
+            
+            <div id="scanner-modal" class="modal">
+                <div class="modal-content">
+                    <h3 id="scanner-mode-title">Modo Escaneo</h3>
+                    <div class="scanner-container">
+                        <video id="scanner-video"></video>
+                        <div class="scanner-overlay">
+                            <div class="scanner-line"></div>
+                        </div>
+                    </div>
+                    <p>Enfoca el código de barras o introduce manualmente el número:</p>
+                    <div class="form-group">
+                        <input type="text" id="manual-code-input" placeholder="Código del producto">
+                    </div>
+                    <button id="confirm-manual-code" class="btn">Confirmar</button>
+                    <button id="cancel-scan" class="btn btn-danger">Cancelar</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="current-table-section" class="card hidden">
+            <h2 id="current-table-name">Nombre de la Tabla</h2>
+            <div class="action-buttons">
+                <button id="add-manual-product" class="btn">Añadir Producto Manualmente</button>
+                <button id="export-data" class="btn">Exportar Datos</button>
+                <button id="close-table" class="btn btn-danger">Cerrar Tabla</button>
+            </div>
+            
+            <div id="products-table-container">
+                <table id="products-table">
+                    <thead>
+                        <tr>
+                            <th>Número</th>
+                            <th>Nombre</th>
+                            <th>Valor</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Los productos se mostrarán aquí -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div id="manual-product-modal" class="modal">
+            <div class="modal-content">
+                <h3>Añadir Producto Manualmente</h3>
+                <div class="form-group">
+                    <label for="product-number">Número del Producto:</label>
+                    <input type="text" id="product-number" placeholder="Código único">
+                </div>
+                <div class="form-group">
+                    <label for="product-name">Nombre de la Prenda:</label>
+                    <input type="text" id="product-name" placeholder="Ej: Camiseta Básica">
+                </div>
+                <div class="form-group">
+                    <label for="product-value">Valor:</label>
+                    <input type="number" id="product-value" placeholder="Ej: 25.99">
+                </div>
+                <button id="confirm-add-product" class="btn btn-success">Añadir Producto</button>
+                <button id="cancel-add-product" class="btn btn-danger">Cancelar</button>
+            </div>
+        </div>
+        
+        <div id="alert-container"></div>
+        
+        <footer>
+            <p>Aplicación Web de Escáner de Etiquetas - Desarrollada con HTML, CSS y JavaScript</p>
+        </footer>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script>
+        // Variables globales
+        let currentTable = null;
+        let tables = JSON.parse(localStorage.getItem('clothingTables')) || {};
+        let scannerMode = null; // 'product' o 'sale'
+        let stream = null;
+        let scanInterval = null;
+        
+        // Elementos DOM
+        const mainMenu = document.getElementById('main-menu');
+        const createTableSection = document.getElementById('create-table-section');
+        const tablesListSection = document.getElementById('tables-list-section');
+        const scannerSection = document.getElementById('scanner-section');
+        const currentTableSection = document.getElementById('current-table-section');
+        const scannerModal = document.getElementById('scanner-modal');
+        const manualProductModal = document.getElementById('manual-product-modal');
+        const alertContainer = document.getElementById('alert-container');
+        
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            // Asignar event listeners a los botones
+            document.getElementById('create-table-btn').addEventListener('click', showCreateTableSection);
+            document.getElementById('view-tables-btn').addEventListener('click', showTablesList);
+            document.getElementById('scan-btn').addEventListener('click', showScannerSection);
+            
+            document.getElementById('confirm-create-table').addEventListener('click', createNewTable);
+            document.getElementById('cancel-create-table').addEventListener('click', showMainMenu);
+            
+            document.getElementById('back-from-tables').addEventListener('click', showMainMenu);
+            
+            document.getElementById('scan-product-btn').addEventListener('click', () => startScan('product'));
+            document.getElementById('scan-sale-btn').addEventListener('click', () => startScan('sale'));
+            document.getElementById('back-from-scanner').addEventListener('click', showMainMenu);
+            
+            document.getElementById('cancel-scan').addEventListener('click', stopScan);
+            document.getElementById('confirm-manual-code').addEventListener('click', processManualCode);
+            
+            document.getElementById('add-manual-product').addEventListener('click', showManualProductModal);
+            document.getElementById('export-data').addEventListener('click', exportTableData);
+            document.getElementById('close-table').addEventListener('click', closeCurrentTable);
+            
+            document.getElementById('confirm-add-product').addEventListener('click', addManualProduct);
+            document.getElementById('cancel-add-product').addEventListener('click', () => {
+                manualProductModal.style.display = 'none';
+            });
+            
+            // Cargar datos iniciales si existen
+            if (Object.keys(tables).length > 0) {
+                showAlert('Datos cargados correctamente desde el almacenamiento local', 'success');
+            }
+        });
+        
+        // Funciones de navegación
+        function showMainMenu() {
+            hideAllSections();
+            mainMenu.classList.remove('hidden');
+            stopScan();
+        }
+        
+        function showCreateTableSection() {
+            hideAllSections();
+            createTableSection.classList.remove('hidden');
+        }
+        
+        function showTablesList() {
+            hideAllSections();
+            tablesListSection.classList.remove('hidden');
+            renderTablesList();
+        }
+        
+        function showScannerSection() {
+            hideAllSections();
+            scannerSection.classList.remove('hidden');
+        }
+        
+        function showCurrentTable() {
+            hideAllSections();
+            currentTableSection.classList.remove('hidden');
+            renderCurrentTable();
+        }
+        
+        function hideAllSections() {
+            mainMenu.classList.add('hidden');
+            createTableSection.classList.add('hidden');
+            tablesListSection.classList.add('hidden');
+            scannerSection.classList.add('hidden');
+            currentTableSection.classList.add('hidden');
+        }
+        
+        // Funciones de gestión de tablas
+        function createNewTable() {
+            const tableName = document.getElementById('table-name').value.trim();
+            
+            if (!tableName) {
+                showAlert('Por favor, ingresa un nombre para la tabla', 'warning');
+                return;
+            }
+            
+            if (tables[tableName]) {
+                showAlert('Ya existe una tabla con ese nombre', 'danger');
+                return;
+            }
+            
+            tables[tableName] = [];
+            localStorage.setItem('clothingTables', JSON.stringify(tables));
+            
+            document.getElementById('table-name').value = '';
+            showAlert(`Tabla "${tableName}" creada correctamente`, 'success');
+            
+            currentTable = tableName;
+            showCurrentTable();
+        }
+        
+        function renderTablesList() {
+            const tablesContainer = document.getElementById('tables-container');
+            tablesContainer.innerHTML = '';
+            
+            if (Object.keys(tables).length === 0) {
+                tablesContainer.innerHTML = '<p>No hay tablas creadas. Crea una nueva tabla para empezar.</p>';
+                return;
+            }
+            
+            for (const tableName in tables) {
+                const tableItem = document.createElement('div');
+                tableItem.className = 'table-item';
+                tableItem.innerHTML = `
+                    <h3>${tableName}</h3>
+                    <p>${tables[tableName].length} productos</p>
+                `;
+                
+                tableItem.addEventListener('click', () => {
+                    currentTable = tableName;
+                    showCurrentTable();
+                });
+                
+                tablesContainer.appendChild(tableItem);
+            }
+        }
+        
+        function renderCurrentTable() {
+            if (!currentTable) return;
+            
+            document.getElementById('current-table-name').textContent = currentTable;
+            
+            const tableBody = document.getElementById('products-table').querySelector('tbody');
+            tableBody.innerHTML = '';
+            
+            const products = tables[currentTable];
+            
+            if (products.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center;">No hay productos en esta tabla</td></tr>';
+                return;
+            }
+            
+            products.forEach((product, index) => {
+                const row = document.createElement('tr');
+                
+                row.innerHTML = `
+                    <td>${product.code}</td>
+                    <td>${product.name}</td>
+                    <td>$${product.value.toFixed(2)}</td>
+                    <td>
+                        <span class="${product.sold ? 'sold' : 'available'}">
+                            ${product.sold ? 'Vendido' : 'Disponible'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn ${product.sold ? 'btn-warning' : 'btn-success'} toggle-sale-btn" data-index="${index}">
+                            ${product.sold ? 'Marcar como Disponible' : 'Marcar como Vendido'}
+                        </button>
+                        <button class="btn btn-danger delete-product-btn" data-index="${index}">Eliminar</button>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Añadir event listeners a los botones de la tabla
+            document.querySelectorAll('.toggle-sale-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.target.getAttribute('data-index');
+                    toggleProductSaleStatus(index);
+                });
+            });
+            
+            document.querySelectorAll('.delete-product-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const index = e.target.getAttribute('data-index');
+                    deleteProduct(index);
+                });
+            });
+        }
+        
+        function toggleProductSaleStatus(index) {
+            tables[currentTable][index].sold = !tables[currentTable][index].sold;
+            localStorage.setItem('clothingTables', JSON.stringify(tables));
+            renderCurrentTable();
+            showAlert('Estado del producto actualizado', 'success');
+        }
+        
+        function deleteProduct(index) {
+            if (confirm('¿Estás seguro de que quieres eliminar este producto?')) {
+                tables[currentTable].splice(index, 1);
+                localStorage.setItem('clothingTables', JSON.stringify(tables));
+                renderCurrentTable();
+                showAlert('Producto eliminado correctamente', 'success');
+            }
+        }
+        
+        function closeCurrentTable() {
+            currentTable = null;
+            showMainMenu();
+        }
+        
+        function exportTableData() {
+            if (!currentTable || tables[currentTable].length === 0) {
+                showAlert('No hay datos para exportar', 'warning');
+                return;
+            }
+            
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Código,Nombre,Valor,Estado\n";
+            
+            tables[currentTable].forEach(product => {
+                const row = [
+                    product.code,
+                    product.name,
+                    product.value,
+                    product.sold ? "Vendido" : "Disponible"
+                ].join(',');
+                
+                csvContent += row + "\n";
+            });
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `${currentTable}_inventario.csv`);
+            document.body.appendChild(link);
+            
+            link.click();
+            document.body.removeChild(link);
+            showAlert('Datos exportados correctamente', 'success');
+        }
+        
+        // Funciones de escaneo
+        function startScan(mode) {
+            scannerMode = mode;
+            document.getElementById('scanner-mode-title').textContent = 
+                mode === 'product' ? 'Escaneo de Producto' : 'Escaneo de Venta';
+            
+            scannerModal.style.display = 'flex';
+            document.getElementById('manual-code-input').value = '';
+            
+            // Inicializar la cámara
+            initCamera();
+        }
+        
+        function stopScan() {
+            scannerModal.style.display = 'none';
+            
+            // Detener la cámara
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // Detener el intervalo de escaneo
+            if (scanInterval) {
+                clearInterval(scanInterval);
+                scanInterval = null;
+            }
+        }
+        
+        function initCamera() {
+            const video = document.getElementById('scanner-video');
+            
+            navigator.mediaDevices.getUserMedia({ 
+                video: { 
+                    facingMode: 'environment' 
+                } 
+            })
+            .then(function(mediaStream) {
+                stream = mediaStream;
+                video.srcObject = mediaStream;
+                video.play();
+                
+                // Iniciar detección de código QR después de que el video esté listo
+                video.onplaying = () => {
+                    scanForBarcode();
+                };
+            })
+            .catch(function(error) {
+                console.error('Error al acceder a la cámara:', error);
+                showAlert('No se pudo acceder a la cámara. Asegúrate de dar los permisos necesarios.', 'danger');
+                // Permitir entrada manual si la cámara falla
+                document.getElementById('manual-code-input').focus();
+            });
+        }
+        
+        function scanForBarcode() {
+            const video = document.getElementById('scanner-video');
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            
+            // Configurar intervalo para escanear continuamente
+            scanInterval = setInterval(() => {
+                if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                    canvas.height = video.videoHeight;
+                    canvas.width = video.videoWidth;
+                    
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                    
+                    // Usar jsQR para detectar códigos QR
+                    const code = jsQR(imageData.data, imageData.width, imageData.height);
+                    
+                    if (code) {
+                        processScannedCode(code.data);
+                    }
+                }
+            }, 500);
+        }
+        
+        function processScannedCode(code) {
+            if (scannerMode === 'product') {
+                addProductFromScan(code);
+            } else if (scannerMode === 'sale') {
+                markProductAsSold(code);
+            }
+            
+            stopScan();
+        }
+        
+        function processManualCode() {
+            const code = document.getElementById('manual-code-input').value.trim();
+            
+            if (!code) {
+                showAlert('Por favor, ingresa un código', 'warning');
+                return;
+            }
+            
+            processScannedCode(code);
+        }
+        
+        function addProductFromScan(code) {
+            if (!currentTable) {
+                showAlert('Primero debes seleccionar o crear una tabla', 'warning');
+                return;
+            }
+            
+            // Verificar si el producto ya existe
+            const existingProduct = tables[currentTable].find(product => product.code === code);
+            
+            if (existingProduct) {
+                showAlert('Este producto ya existe en la tabla', 'warning');
+                return;
+            }
+            
+            // Mostrar modal para completar información del producto
+            document.getElementById('product-number').value = code;
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-value').value = '';
+            
+            manualProductModal.style.display = 'flex';
+        }
+        
+        function markProductAsSold(code) {
+            if (!currentTable) {
+                showAlert('Primero debes seleccionar o crear una tabla', 'warning');
+                return;
+            }
+            
+            const productIndex = tables[currentTable].findIndex(product => product.code === code);
+            
+            if (productIndex === -1) {
+                showAlert('Producto no encontrado en la tabla actual', 'danger');
+                return;
+            }
+            
+            if (tables[currentTable][productIndex].sold) {
+                showAlert('Este producto ya estaba marcado como vendido', 'warning');
+                return;
+            }
+            
+            tables[currentTable][productIndex].sold = true;
+            localStorage.setItem('clothingTables', JSON.stringify(tables));
+            
+            showAlert('Producto marcado como vendido correctamente', 'success');
+            renderCurrentTable();
+        }
+        
+        function showManualProductModal() {
+            if (!currentTable) {
+                showAlert('Primero debes seleccionar o crear una tabla', 'warning');
+                return;
+            }
+            
+            document.getElementById('product-number').value = '';
+            document.getElementById('product-name').value = '';
+            document.getElementById('product-value').value = '';
+            
+            manualProductModal.style.display = 'flex';
+        }
+        
+        function addManualProduct() {
+            const code = document.getElementById('product-number').value.trim();
+            const name = document.getElementById('product-name').value.trim();
+            const value = parseFloat(document.getElementById('product-value').value);
+            
+            if (!code || !name || isNaN(value)) {
+                showAlert('Por favor, completa todos los campos correctamente', 'warning');
+                return;
+            }
+            
+            // Verificar si el producto ya existe
+            const existingProduct = tables[currentTable].find(product => product.code === code);
+            
+            if (existingProduct) {
+                showAlert('Este producto ya existe en la tabla', 'warning');
+                return;
+            }
+            
+            // Añadir el producto
+            tables[currentTable].push({
+                code: code,
+                name: name,
+                value: value,
+                sold: false
+            });
+            
+            localStorage.setItem('clothingTables', JSON.stringify(tables));
+            
+            manualProductModal.style.display = 'none';
+            showAlert('Producto añadido correctamente', 'success');
+            renderCurrentTable();
+        }
+        
+        // Utilidades
+        function showAlert(message, type) {
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            alertContainer.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
