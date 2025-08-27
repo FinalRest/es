@@ -606,7 +606,6 @@
                     <div class="scanner-controls">
                         <button id="switch-camera" class="btn btn-small"><i class="fas fa-sync"></i> Cambiar Cámara</button>
                         <button id="toggle-torch" class="btn btn-small"><i class="fas fa-lightbulb"></i> Luz</button>
-                        <button id="toggle-verification" class="btn btn-small btn-warning"><i class="fas fa-check-double"></i> Verificación: OFF</button>
                     </div>
                     
                     <button id="confirm-manual-code" class="btn"><i class="fas fa-check"></i> Confirmar</button>
@@ -705,9 +704,6 @@
         let scanInterval = null;
         let currentCamera = 'environment';
         let torchOn = false;
-        let verificationMode = false;
-        let lastScannedCode = '';
-        let scanAttempts = 0;
         
         // Elementos DOM
         const mainMenu = document.getElementById('main-menu');
@@ -750,17 +746,16 @@
             
             // Nuevos botones dentro de la tabla
             document.getElementById('table-scan-product').addEventListener('click', () => {
-                startScan('product');
+                startScanFromTable('product');
             });
             
             document.getElementById('table-scan-sale').addEventListener('click', () => {
-                startScan('sale');
+                startScanFromTable('sale');
             });
             
             // Controles de cámara
             document.getElementById('switch-camera').addEventListener('click', switchCamera);
             document.getElementById('toggle-torch').addEventListener('click', toggleTorch);
-            document.getElementById('toggle-verification').addEventListener('click', toggleVerification);
             
             // Cargar datos iniciales si existen
             if (Object.keys(tables).length > 0) {
@@ -768,21 +763,15 @@
             }
         });
         
-        // Función para alternar el modo de verificación
-        function toggleVerification() {
-            verificationMode = !verificationMode;
-            const button = document.getElementById('toggle-verification');
-            if (verificationMode) {
-                button.innerHTML = '<i class="fas fa-check-double"></i> Verificación: ON';
-                button.classList.add('btn-success');
-                button.classList.remove('btn-warning');
-                showAlert('Modo verificación activado: se requerirán dos escaneos idénticos', 'success');
-            } else {
-                button.innerHTML = '<i class="fas fa-check-double"></i> Verificación: OFF';
-                button.classList.remove('btn-success');
-                button.classList.add('btn-warning');
-                showAlert('Modo verificación desactivado', 'warning');
+        // Función para iniciar escaneo desde la vista de tabla
+        function startScanFromTable(mode) {
+            if (!currentTable) {
+                showAlert('Primero debes seleccionar una tabla', 'warning');
+                return;
             }
+            
+            scannerMode = mode;
+            openScanner();
         }
         
         // Funciones de navegación
@@ -1055,10 +1044,6 @@
         }
         
         function openScanner() {
-            // Reiniciar variables de verificación
-            lastScannedCode = '';
-            scanAttempts = 0;
-            
             document.getElementById('scanner-mode-title').textContent = 
                 scannerMode === 'product' ? 'Escaneo de Producto' : 'Escaneo de Venta';
             
@@ -1095,15 +1080,14 @@
                         "code_39_reader",
                         "upc_reader",
                         "upc_e_reader"
-                    ],
-                    multiple: false // Mejorar precisión desactivando múltiples lecturas
+                    ]
                 },
                 locator: {
                     patchSize: "medium",
                     halfSample: true
                 },
                 locate: true,
-                frequency: 10 // Reducir frecuencia de escaneo para mejorar precisión
+                frequency: 5 // Frecuencia reducida para mejor rendimiento
             }, function(err) {
                 if (err) {
                     console.error("Error al inicializar QuaggaJS:", err);
@@ -1120,7 +1104,7 @@
                 if (result) {
                     // Actualizar información de calidad de escaneo
                     if (result.codeResult && result.codeResult.code) {
-                        document.getElementById('scan-quality').textContent = 'Código detectado - Buena calidad';
+                        document.getElementById('scan-quality').textContent = 'Código detectado';
                         document.getElementById('scan-quality').style.color = 'green';
                     } else {
                         document.getElementById('scan-quality').textContent = 'Buscando código...';
@@ -1132,48 +1116,14 @@
             Quagga.onDetected(function(result) {
                 if (result.codeResult) {
                     const code = result.codeResult.code;
-                    const confidence = result.codeResult.decodedCodes[0].error || 100;
                     
-                    // Actualizar información de calidad
-                    if (confidence < 0.2) {
-                        document.getElementById('scan-quality').textContent = 'Alta calidad - Confiable';
-                        document.getElementById('scan-quality').style.color = 'green';
-                    } else if (confidence < 0.4) {
-                        document.getElementById('scan-quality').textContent = 'Calidad media - Verificar';
-                        document.getElementById('scan-quality').style.color = 'orange';
-                    } else {
-                        document.getElementById('scan-quality').textContent = 'Baja calidad - Reintentar';
-                        document.getElementById('scan-quality').style.color = 'red';
-                        return; // Ignorar escaneos de baja calidad
-                    }
+                    document.getElementById('scan-quality').textContent = 'Código leído correctamente';
+                    document.getElementById('scan-quality').style.color = 'green';
                     
-                    console.log("Código detectado:", code, "Calidad:", confidence);
+                    console.log("Código detectado:", code);
                     
-                    // Verificación de código duplicado
-                    if (verificationMode) {
-                        scanAttempts++;
-                        
-                        if (scanAttempts === 1) {
-                            // Primer escaneo
-                            lastScannedCode = code;
-                            showAlert('Primer escaneo realizado. Escanea de nuevo para verificar.', 'warning');
-                            return;
-                        } else if (scanAttempts === 2) {
-                            // Segundo escaneo - verificar coincidencia
-                            if (code === lastScannedCode) {
-                                showAlert('Verificación exitosa. Código confirmado.', 'success');
-                                processScannedCode(code);
-                            } else {
-                                showAlert('Los códigos no coinciden. Por favor, escanea de nuevo.', 'danger');
-                                scanAttempts = 0;
-                                lastScannedCode = '';
-                                return;
-                            }
-                        }
-                    } else {
-                        // Modo normal sin verificación
-                        processScannedCode(code);
-                    }
+                    // Procesar el código escaneado
+                    processScannedCode(code);
                 }
             });
         }
@@ -1267,6 +1217,7 @@
                 return;
             }
             
+            // Buscar el producto por código
             const productIndex = tables[currentTable].findIndex(product => product.code === code);
             
             if (productIndex === -1) {
@@ -1274,11 +1225,13 @@
                 return;
             }
             
+            // Si el producto ya estaba vendido, mostrar mensaje
             if (tables[currentTable][productIndex].sold) {
                 showAlert('Este producto ya estaba marcado como vendido', 'warning');
                 return;
             }
             
+            // Marcar como vendido
             tables[currentTable][productIndex].sold = true;
             localStorage.setItem('clothingTables', JSON.stringify(tables));
             
