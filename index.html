@@ -128,6 +128,18 @@
             object-fit: cover;
         }
         
+        #interactive {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        
+        .drawingBuffer {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
         .scanner-overlay {
             position: absolute;
             top: 0;
@@ -136,6 +148,7 @@
             height: 100%;
             border: 2px solid var(--primary);
             box-sizing: border-box;
+            pointer-events: none;
         }
         
         .scanner-line {
@@ -144,6 +157,7 @@
             height: 2px;
             background: var(--success);
             animation: scan 2s infinite linear;
+            pointer-events: none;
         }
         
         @keyframes scan {
@@ -318,6 +332,13 @@
             min-width: 140px;
         }
         
+        .scanner-controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
         @media (max-width: 768px) {
             .action-buttons {
                 flex-direction: column;
@@ -347,8 +368,14 @@
             .scanner-types {
                 flex-direction: column;
             }
+            
+            .scanner-controls {
+                flex-direction: column;
+            }
         }
     </style>
+    <!-- QuaggaJS para escanear códigos de barras -->
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
 </head>
 <body>
     <div class="container">
@@ -424,7 +451,7 @@
                 <div class="modal-content">
                     <h3 id="scanner-mode-title">Modo Escaneo</h3>
                     <div class="scanner-container">
-                        <video id="scanner-video"></video>
+                        <div id="interactive" class="viewport"></div>
                         <div class="scanner-overlay">
                             <div class="scanner-line"></div>
                         </div>
@@ -432,6 +459,10 @@
                     <p>Enfoca el código de barras o introduce manualmente el número:</p>
                     <div class="form-group">
                         <input type="text" id="manual-code-input" placeholder="Código del producto">
+                    </div>
+                    <div class="scanner-controls">
+                        <button id="switch-camera" class="btn btn-small">Cambiar Cámara</button>
+                        <button id="toggle-torch" class="btn btn-small">Luz</button>
                     </div>
                     <button id="confirm-manual-code" class="btn">Confirmar</button>
                     <button id="cancel-scan" class="btn btn-danger">Cancelar</button>
@@ -499,6 +530,7 @@
         </footer>
     </div>
 
+    <!-- QuaggaJS ya está incluido en el head -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
     <script>
         // Variables globales
@@ -507,6 +539,8 @@
         let scannerMode = null; // 'product' o 'sale'
         let stream = null;
         let scanInterval = null;
+        let currentCamera = 'environment';
+        let torchOn = false;
         
         // Elementos DOM
         const mainMenu = document.getElementById('main-menu');
@@ -555,6 +589,10 @@
             document.getElementById('table-scan-sale').addEventListener('click', () => {
                 startScan('sale');
             });
+            
+            // Controles de cámara
+            document.getElementById('switch-camera').addEventListener('click', switchCamera);
+            document.getElementById('toggle-torch').addEventListener('click', toggleTorch);
             
             // Cargar datos iniciales si existen
             if (Object.keys(tables).length > 0) {
@@ -768,7 +806,7 @@
             showAlert('Datos exportados correctamente', 'success');
         }
         
-        // Funciones de escaneo
+        // Funciones de escaneo con QuaggaJS
         function startScan(mode) {
             // Verificar si estamos en la vista de tabla o en el menú de escaneo
             if (currentTable) {
@@ -809,74 +847,92 @@
             scannerModal.style.display = 'flex';
             document.getElementById('manual-code-input').value = '';
             
-            // Inicializar la cámara
-            initCamera();
+            // Inicializar QuaggaJS para escanear códigos de barras
+            initQuagga();
+        }
+        
+        function initQuagga() {
+            // Detener cualquier escaneo previo
+            if (Quagga.initialized) {
+                Quagga.stop();
+            }
+            
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#interactive'),
+                    constraints: {
+                        width: 640,
+                        height: 480,
+                        facingMode: currentCamera
+                    },
+                },
+                decoder: {
+                    readers: [
+                        "code_128_reader",
+                        "ean_reader",
+                        "ean_8_reader",
+                        "code_39_reader",
+                        "upc_reader",
+                        "upc_e_reader"
+                    ]
+                }
+            }, function(err) {
+                if (err) {
+                    console.error("Error al inicializar QuaggaJS:", err);
+                    showAlert('Error al acceder a la cámara. Asegúrate de dar los permisos necesarios.', 'danger');
+                    document.getElementById('manual-code-input').focus();
+                    return;
+                }
+                console.log("QuaggaJS inicializado correctamente.");
+                Quagga.start();
+                Quagga.initialized = true;
+            });
+
+            Quagga.onDetected(function(result) {
+                const code = result.codeResult.code;
+                console.log("Código detectado:", code);
+                processScannedCode(code);
+            });
         }
         
         function stopScan() {
             scannerModal.style.display = 'none';
             
-            // Detener la cámara
+            // Detener QuaggaJS
+            if (Quagga.initialized) {
+                Quagga.stop();
+                Quagga.initialized = false;
+            }
+        }
+        
+        function switchCamera() {
+            currentCamera = currentCamera === 'environment' ? 'user' : 'environment';
+            stopScan();
+            setTimeout(() => {
+                openScanner();
+            }, 300);
+        }
+        
+        function toggleTorch() {
+            // Esta función es más efectiva en dispositivos móviles
+            // y depende del soporte del navegador y dispositivo
             if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-                stream = null;
-            }
-            
-            // Detener el intervalo de escaneo
-            if (scanInterval) {
-                clearInterval(scanInterval);
-                scanInterval = null;
-            }
-        }
-        
-        function initCamera() {
-            const video = document.getElementById('scanner-video');
-            
-            navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: 'environment' 
-                } 
-            })
-            .then(function(mediaStream) {
-                stream = mediaStream;
-                video.srcObject = mediaStream;
-                video.play();
-                
-                // Iniciar detección de código QR después de que el video esté listo
-                video.onplaying = () => {
-                    scanForBarcode();
-                };
-            })
-            .catch(function(error) {
-                console.error('Error al acceder a la cámara:', error);
-                showAlert('No se pudo acceder a la cámara. Asegúrate de dar los permisos necesarios.', 'danger');
-                // Permitir entrada manual si la cámara falla
-                document.getElementById('manual-code-input').focus();
-            });
-        }
-        
-        function scanForBarcode() {
-            const video = document.getElementById('scanner-video');
-            const canvas = document.createElement('canvas');
-            const context = canvas.getContext('2d');
-            
-            // Configurar intervalo para escanear continuamente
-            scanInterval = setInterval(() => {
-                if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                    canvas.height = video.videoHeight;
-                    canvas.width = video.videoWidth;
-                    
-                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-                    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-                    
-                    // Usar jsQR para detectar códigos QR
-                    const code = jsQR(imageData.data, imageData.width, imageData.height);
-                    
-                    if (code) {
-                        processScannedCode(code.data);
-                    }
+                const track = stream.getVideoTracks()[0];
+                if (track && track.getCapabilities().torch) {
+                    torchOn = !torchOn;
+                    track.applyConstraints({
+                        advanced: [{torch: torchOn}]
+                    }).then(() => {
+                        document.getElementById('toggle-torch').textContent = torchOn ? 'Apagar Luz' : 'Encender Luz';
+                    }).catch(error => {
+                        console.error("Error al cambiar la luz:", error);
+                    });
+                } else {
+                    showAlert('Tu dispositivo no soporta el control de la luz de la cámara', 'warning');
                 }
-            }, 500);
+            }
         }
         
         function processScannedCode(code) {
