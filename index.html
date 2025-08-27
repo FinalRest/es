@@ -46,19 +46,6 @@
             border-radius: 12px;
             margin-bottom: 20px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0) 60%);
-            transform: rotate(30deg);
         }
         
         .card {
@@ -67,12 +54,6 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             padding: 20px;
             margin-bottom: 20px;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
         }
         
         .btn {
@@ -158,12 +139,6 @@
             width: 100%;
             height: 100%;
             position: relative;
-        }
-        
-        .drawingBuffer {
-            position: absolute;
-            top: 0;
-            left: 0;
         }
         
         .scanner-overlay {
@@ -351,13 +326,6 @@
             font-size: 14px;
         }
         
-        .status-badge {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-        }
-        
         .table-selector {
             padding: 12px;
             border-radius: 6px;
@@ -444,8 +412,36 @@
             color: var(--warning);
         }
         
-        .mobile-optimized {
-            display: none;
+        .scan-quality {
+            margin: 15px 0;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .scan-tips {
+            margin: 15px 0;
+            padding: 15px;
+            background: #fff3cd;
+            border-radius: 8px;
+            border-left: 4px solid var(--warning);
+        }
+        
+        .scan-tips h4 {
+            margin-top: 0;
+            color: var(--warning);
+            display: flex;
+            align-items: center;
+        }
+        
+        .scan-tips ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .scan-tips li {
+            margin-bottom: 8px;
         }
         
         @media (max-width: 768px) {
@@ -482,15 +478,6 @@
                 grid-template-columns: 1fr;
             }
             
-            /* Optimización para móviles */
-            .desktop-only {
-                display: none;
-            }
-            
-            .mobile-optimized {
-                display: block;
-            }
-            
             table {
                 font-size: 13px;
                 min-width: unset;
@@ -509,50 +496,6 @@
             
             .card {
                 padding: 15px;
-            }
-            
-            .table-responsive {
-                border-radius: 8px;
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-            }
-        }
-        
-        /* Mejoras de accesibilidad */
-        @media (prefers-reduced-motion: reduce) {
-            * {
-                animation-duration: 0.01ms !important;
-                animation-iteration-count: 1 !important;
-                transition-duration: 0.01ms !important;
-            }
-        }
-        
-        /* Estilos para modo oscuro */
-        @media (prefers-color-scheme: dark) {
-            body {
-                background-color: #1a1a1a;
-                color: #f0f0f0;
-            }
-            
-            .card {
-                background: #2d2d2d;
-                color: #f0f0f0;
-            }
-            
-            input, select {
-                background: #3d3d3d;
-                color: #f0f0f0;
-                border-color: #555;
-            }
-            
-            .table-item {
-                background: #3d3d3d;
-                border-color: #555;
-                color: #f0f0f0;
-            }
-            
-            .scanner-info {
-                background-color: #2d3d4d;
             }
         }
     </style>
@@ -615,6 +558,17 @@
                 </div>
             </div>
             
+            <div class="scan-tips">
+                <h4><i class="fas fa-lightbulb"></i> Consejos para un mejor escaneo</h4>
+                <ul>
+                    <li>Asegúrate de tener buena iluminación</li>
+                    <li>Mantén estable el dispositivo al escanear</li>
+                    <li>Enfoca correctamente el código de barras</li>
+                    <li>Acerca o aleja la cámara hasta que el código se vea nítido</li>
+                    <li>Evita reflejos en el código de barras</li>
+                </ul>
+            </div>
+            
             <div class="form-group">
                 <label for="scan-table-selector">Selecciona la tabla de destino:</label>
                 <select id="scan-table-selector" class="table-selector">
@@ -632,20 +586,29 @@
             <div id="scanner-modal" class="modal">
                 <div class="modal-content">
                     <h3 id="scanner-mode-title"><i class="fas fa-camera"></i> Modo Escaneo</h3>
+                    
+                    <div class="scan-quality">
+                        <p><i class="fas fa-info-circle"></i> <strong>Calidad de escaneo:</strong> <span id="scan-quality">Esperando escaneo...</span></p>
+                    </div>
+                    
                     <div class="scanner-container">
                         <div id="interactive" class="viewport"></div>
                         <div class="scanner-overlay">
                             <div class="scanner-line"></div>
                         </div>
                     </div>
+                    
                     <p>Enfoca el código de barras o introduce manualmente el número:</p>
                     <div class="form-group">
                         <input type="text" id="manual-code-input" placeholder="Código del producto">
                     </div>
+                    
                     <div class="scanner-controls">
                         <button id="switch-camera" class="btn btn-small"><i class="fas fa-sync"></i> Cambiar Cámara</button>
                         <button id="toggle-torch" class="btn btn-small"><i class="fas fa-lightbulb"></i> Luz</button>
+                        <button id="toggle-verification" class="btn btn-small btn-warning"><i class="fas fa-check-double"></i> Verificación: OFF</button>
                     </div>
+                    
                     <button id="confirm-manual-code" class="btn"><i class="fas fa-check"></i> Confirmar</button>
                     <button id="cancel-scan" class="btn btn-danger"><i class="fas fa-times"></i> Cancelar</button>
                 </div>
@@ -742,6 +705,9 @@
         let scanInterval = null;
         let currentCamera = 'environment';
         let torchOn = false;
+        let verificationMode = false;
+        let lastScannedCode = '';
+        let scanAttempts = 0;
         
         // Elementos DOM
         const mainMenu = document.getElementById('main-menu');
@@ -794,12 +760,30 @@
             // Controles de cámara
             document.getElementById('switch-camera').addEventListener('click', switchCamera);
             document.getElementById('toggle-torch').addEventListener('click', toggleTorch);
+            document.getElementById('toggle-verification').addEventListener('click', toggleVerification);
             
             // Cargar datos iniciales si existen
             if (Object.keys(tables).length > 0) {
                 showAlert('Datos cargados correctamente desde el almacenamiento local', 'success');
             }
         });
+        
+        // Función para alternar el modo de verificación
+        function toggleVerification() {
+            verificationMode = !verificationMode;
+            const button = document.getElementById('toggle-verification');
+            if (verificationMode) {
+                button.innerHTML = '<i class="fas fa-check-double"></i> Verificación: ON';
+                button.classList.add('btn-success');
+                button.classList.remove('btn-warning');
+                showAlert('Modo verificación activado: se requerirán dos escaneos idénticos', 'success');
+            } else {
+                button.innerHTML = '<i class="fas fa-check-double"></i> Verificación: OFF';
+                button.classList.remove('btn-success');
+                button.classList.add('btn-warning');
+                showAlert('Modo verificación desactivado', 'warning');
+            }
+        }
         
         // Funciones de navegación
         function showMainMenu() {
@@ -829,7 +813,7 @@
             hideAllSections();
             currentTableSection.classList.remove('hidden');
             renderCurrentTable();
-            updateSummaryCards(); // Actualizar las tarjetas de resumen
+            updateSummaryCards();
         }
         
         function hideAllSections() {
@@ -1071,11 +1055,16 @@
         }
         
         function openScanner() {
+            // Reiniciar variables de verificación
+            lastScannedCode = '';
+            scanAttempts = 0;
+            
             document.getElementById('scanner-mode-title').textContent = 
                 scannerMode === 'product' ? 'Escaneo de Producto' : 'Escaneo de Venta';
             
             scannerModal.style.display = 'flex';
             document.getElementById('manual-code-input').value = '';
+            document.getElementById('scan-quality').textContent = 'Esperando escaneo...';
             
             // Inicializar QuaggaJS para escanear códigos de barras
             initQuagga();
@@ -1106,8 +1095,15 @@
                         "code_39_reader",
                         "upc_reader",
                         "upc_e_reader"
-                    ]
-                }
+                    ],
+                    multiple: false // Mejorar precisión desactivando múltiples lecturas
+                },
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                },
+                locate: true,
+                frequency: 10 // Reducir frecuencia de escaneo para mejorar precisión
             }, function(err) {
                 if (err) {
                     console.error("Error al inicializar QuaggaJS:", err);
@@ -1120,10 +1116,65 @@
                 Quagga.initialized = true;
             });
 
+            Quagga.onProcessed(function(result) {
+                if (result) {
+                    // Actualizar información de calidad de escaneo
+                    if (result.codeResult && result.codeResult.code) {
+                        document.getElementById('scan-quality').textContent = 'Código detectado - Buena calidad';
+                        document.getElementById('scan-quality').style.color = 'green';
+                    } else {
+                        document.getElementById('scan-quality').textContent = 'Buscando código...';
+                        document.getElementById('scan-quality').style.color = 'orange';
+                    }
+                }
+            });
+
             Quagga.onDetected(function(result) {
-                const code = result.codeResult.code;
-                console.log("Código detectado:", code);
-                processScannedCode(code);
+                if (result.codeResult) {
+                    const code = result.codeResult.code;
+                    const confidence = result.codeResult.decodedCodes[0].error || 100;
+                    
+                    // Actualizar información de calidad
+                    if (confidence < 0.2) {
+                        document.getElementById('scan-quality').textContent = 'Alta calidad - Confiable';
+                        document.getElementById('scan-quality').style.color = 'green';
+                    } else if (confidence < 0.4) {
+                        document.getElementById('scan-quality').textContent = 'Calidad media - Verificar';
+                        document.getElementById('scan-quality').style.color = 'orange';
+                    } else {
+                        document.getElementById('scan-quality').textContent = 'Baja calidad - Reintentar';
+                        document.getElementById('scan-quality').style.color = 'red';
+                        return; // Ignorar escaneos de baja calidad
+                    }
+                    
+                    console.log("Código detectado:", code, "Calidad:", confidence);
+                    
+                    // Verificación de código duplicado
+                    if (verificationMode) {
+                        scanAttempts++;
+                        
+                        if (scanAttempts === 1) {
+                            // Primer escaneo
+                            lastScannedCode = code;
+                            showAlert('Primer escaneo realizado. Escanea de nuevo para verificar.', 'warning');
+                            return;
+                        } else if (scanAttempts === 2) {
+                            // Segundo escaneo - verificar coincidencia
+                            if (code === lastScannedCode) {
+                                showAlert('Verificación exitosa. Código confirmado.', 'success');
+                                processScannedCode(code);
+                            } else {
+                                showAlert('Los códigos no coinciden. Por favor, escanea de nuevo.', 'danger');
+                                scanAttempts = 0;
+                                lastScannedCode = '';
+                                return;
+                            }
+                        }
+                    } else {
+                        // Modo normal sin verificación
+                        processScannedCode(code);
+                    }
+                }
             });
         }
         
@@ -1155,7 +1206,9 @@
                     track.applyConstraints({
                         advanced: [{torch: torchOn}]
                     }).then(() => {
-                        document.getElementById('toggle-torch').textContent = torchOn ? 'Apagar Luz' : 'Encender Luz';
+                        document.getElementById('toggle-torch').innerHTML = torchOn ? 
+                            '<i class="fas fa-lightbulb"></i> Apagar Luz' : 
+                            '<i class="fas fa-lightbulb"></i> Encender Luz';
                     }).catch(error => {
                         console.error("Error al cambiar la luz:", error);
                     });
