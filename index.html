@@ -84,6 +84,11 @@
             color: var(--dark);
         }
         
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+        
         .modal {
             display: none;
             position: fixed;
@@ -254,6 +259,13 @@
             margin: 20px 0;
         }
         
+        .table-actions {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+        
         footer {
             text-align: center;
             margin-top: 30px;
@@ -266,6 +278,15 @@
             border-radius: 20px;
             font-size: 12px;
             font-weight: bold;
+        }
+        
+        .table-selector {
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+            margin-bottom: 15px;
+            width: 100%;
         }
         
         @media (max-width: 768px) {
@@ -284,6 +305,14 @@
             
             th, td {
                 padding: 8px 10px;
+            }
+            
+            .table-actions {
+                flex-direction: column;
+            }
+            
+            .table-actions .btn {
+                margin-bottom: 10px;
             }
         }
     </style>
@@ -324,6 +353,15 @@
         
         <div id="scanner-section" class="card hidden">
             <h2>Escaneo de Productos</h2>
+            
+            <div class="form-group">
+                <label for="scan-table-selector">Selecciona la tabla de destino:</label>
+                <select id="scan-table-selector" class="table-selector">
+                    <option value="">-- Selecciona una tabla --</option>
+                    <!-- Las opciones se llenarán dinámicamente -->
+                </select>
+            </div>
+            
             <div class="action-buttons">
                 <button id="scan-product-btn" class="btn">Escanear Producto</button>
                 <button id="scan-sale-btn" class="btn btn-success">Escanear Venta</button>
@@ -351,10 +389,17 @@
         
         <div id="current-table-section" class="card hidden">
             <h2 id="current-table-name">Nombre de la Tabla</h2>
-            <div class="action-buttons">
-                <button id="add-manual-product" class="btn">Añadir Producto Manualmente</button>
-                <button id="export-data" class="btn">Exportar Datos</button>
-                <button id="close-table" class="btn btn-danger">Cerrar Tabla</button>
+            
+            <div class="table-actions">
+                <div>
+                    <button id="table-scan-product" class="btn btn-small">Escanear Producto</button>
+                    <button id="table-scan-sale" class="btn btn-success btn-small">Escanear Venta</button>
+                </div>
+                <div>
+                    <button id="add-manual-product" class="btn btn-small">Añadir Producto Manualmente</button>
+                    <button id="export-data" class="btn btn-small">Exportar Datos</button>
+                    <button id="close-table" class="btn btn-danger btn-small">Cerrar Tabla</button>
+                </div>
             </div>
             
             <div id="products-table-container">
@@ -420,6 +465,7 @@
         const scannerModal = document.getElementById('scanner-modal');
         const manualProductModal = document.getElementById('manual-product-modal');
         const alertContainer = document.getElementById('alert-container');
+        const scanTableSelector = document.getElementById('scan-table-selector');
         
         // Inicialización
         document.addEventListener('DOMContentLoaded', () => {
@@ -449,6 +495,15 @@
                 manualProductModal.style.display = 'none';
             });
             
+            // Nuevos botones dentro de la tabla
+            document.getElementById('table-scan-product').addEventListener('click', () => {
+                startScan('product');
+            });
+            
+            document.getElementById('table-scan-sale').addEventListener('click', () => {
+                startScan('sale');
+            });
+            
             // Cargar datos iniciales si existen
             if (Object.keys(tables).length > 0) {
                 showAlert('Datos cargados correctamente desde el almacenamiento local', 'success');
@@ -476,6 +531,7 @@
         function showScannerSection() {
             hideAllSections();
             scannerSection.classList.remove('hidden');
+            populateTableSelector();
         }
         
         function showCurrentTable() {
@@ -490,6 +546,18 @@
             tablesListSection.classList.add('hidden');
             scannerSection.classList.add('hidden');
             currentTableSection.classList.add('hidden');
+        }
+        
+        // Llenar el selector de tablas para escaneo
+        function populateTableSelector() {
+            scanTableSelector.innerHTML = '<option value="">-- Selecciona una tabla --</option>';
+            
+            for (const tableName in tables) {
+                const option = document.createElement('option');
+                option.value = tableName;
+                option.textContent = tableName;
+                scanTableSelector.appendChild(option);
+            }
         }
         
         // Funciones de gestión de tablas
@@ -650,9 +718,41 @@
         
         // Funciones de escaneo
         function startScan(mode) {
-            scannerMode = mode;
+            // Verificar si estamos en la vista de tabla o en el menú de escaneo
+            if (currentTable) {
+                // Ya tenemos una tabla seleccionada
+                scannerMode = mode;
+                openScanner();
+            } else if (scannerSection.classList.contains('hidden')) {
+                // Estamos en el menú de escaneo principal
+                const selectedTable = scanTableSelector.value;
+                
+                if (!selectedTable) {
+                    showAlert('Por favor, selecciona una tabla primero', 'warning');
+                    return;
+                }
+                
+                currentTable = selectedTable;
+                scannerMode = mode;
+                openScanner();
+            } else {
+                // Estamos en la sección de escaneo pero necesitamos seleccionar tabla
+                const selectedTable = scanTableSelector.value;
+                
+                if (!selectedTable) {
+                    showAlert('Por favor, selecciona una tabla primero', 'warning');
+                    return;
+                }
+                
+                currentTable = selectedTable;
+                scannerMode = mode;
+                openScanner();
+            }
+        }
+        
+        function openScanner() {
             document.getElementById('scanner-mode-title').textContent = 
-                mode === 'product' ? 'Escaneo de Producto' : 'Escaneo de Venta';
+                scannerMode === 'product' ? 'Escaneo de Producto' : 'Escaneo de Venta';
             
             scannerModal.style.display = 'flex';
             document.getElementById('manual-code-input').value = '';
@@ -792,7 +892,11 @@
             localStorage.setItem('clothingTables', JSON.stringify(tables));
             
             showAlert('Producto marcado como vendido correctamente', 'success');
-            renderCurrentTable();
+            
+            // Si estamos en la vista de tabla, actualizarla
+            if (!currentTableSection.classList.contains('hidden')) {
+                renderCurrentTable();
+            }
         }
         
         function showManualProductModal() {
@@ -855,5 +959,4 @@
         }
     </script>
 </body>
-
 </html>
