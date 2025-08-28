@@ -685,6 +685,28 @@
                 <button id="cancel-add-product" class="btn btn-danger"><i class="fas fa-times"></i> Cancelar</button>
             </div>
         </div>
+
+        <!-- Nuevo modal para agregar producto desde venta -->
+        <div id="sale-product-modal" class="modal">
+            <div class="modal-content">
+                <h3><i class="fas fa-cash-register"></i> Agregar Producto Vendido</h3>
+                <p>Este producto no existe en la tabla. Por favor, completa la información:</p>
+                <div class="form-group">
+                    <label for="sale-product-number">Número del Producto:</label>
+                    <input type="text" id="sale-product-number" placeholder="Código único" readonly>
+                </div>
+                <div class="form-group">
+                    <label for="sale-product-name">Nombre de la Prenda:</label>
+                    <input type="text" id="sale-product-name" placeholder="Ej: Camiseta Básica">
+                </div>
+                <div class="form-group">
+                    <label for="sale-product-value">Valor:</label>
+                    <input type="number" id="sale-product-value" placeholder="Ej: 25.99">
+                </div>
+                <button id="confirm-sale-product" class="btn btn-success"><i class="fas fa-check"></i> Agregar como Vendido</button>
+                <button id="cancel-sale-product" class="btn btn-danger"><i class="fas fa-times"></i> Cancelar</button>
+            </div>
+        </div>
         
         <div id="alert-container"></div>
         
@@ -704,6 +726,7 @@
         let scanInterval = null;
         let currentCamera = 'environment';
         let torchOn = false;
+        let currentScannedCode = ''; // Para almacenar el código escaneado recientemente
         
         // Elementos DOM
         const mainMenu = document.getElementById('main-menu');
@@ -713,6 +736,7 @@
         const currentTableSection = document.getElementById('current-table-section');
         const scannerModal = document.getElementById('scanner-modal');
         const manualProductModal = document.getElementById('manual-product-modal');
+        const saleProductModal = document.getElementById('sale-product-modal');
         const alertContainer = document.getElementById('alert-container');
         const scanTableSelector = document.getElementById('scan-table-selector');
         
@@ -756,6 +780,12 @@
             // Controles de cámara
             document.getElementById('switch-camera').addEventListener('click', switchCamera);
             document.getElementById('toggle-torch').addEventListener('click', toggleTorch);
+            
+            // Event listeners para el modal de venta
+            document.getElementById('confirm-sale-product').addEventListener('click', addSaleProduct);
+            document.getElementById('cancel-sale-product').addEventListener('click', () => {
+                saleProductModal.style.display = 'none';
+            });
             
             // Cargar datos iniciales si existen
             if (Object.keys(tables).length > 0) {
@@ -1122,6 +1152,9 @@
                     
                     console.log("Código detectado:", code);
                     
+                    // Guardar el código escaneado para usarlo después
+                    currentScannedCode = code;
+                    
                     // Procesar el código escaneado
                     processScannedCode(code);
                 }
@@ -1186,6 +1219,9 @@
                 return;
             }
             
+            // Guardar el código manual para usarlo después
+            currentScannedCode = code;
+            
             processScannedCode(code);
         }
         
@@ -1221,7 +1257,12 @@
             const productIndex = tables[currentTable].findIndex(product => product.code === code);
             
             if (productIndex === -1) {
-                showAlert('Producto no encontrado en la tabla actual', 'danger');
+                // Producto no encontrado, mostrar modal para agregarlo como vendido
+                document.getElementById('sale-product-number').value = code;
+                document.getElementById('sale-product-name').value = '';
+                document.getElementById('sale-product-value').value = '';
+                
+                saleProductModal.style.display = 'flex';
                 return;
             }
             
@@ -1236,6 +1277,45 @@
             localStorage.setItem('clothingTables', JSON.stringify(tables));
             
             showAlert('Producto marcado como vendido correctamente', 'success');
+            
+            // Si estamos en la vista de tabla, actualizarla
+            if (!currentTableSection.classList.contains('hidden')) {
+                renderCurrentTable();
+            }
+        }
+        
+        // Función para agregar producto desde el modal de venta
+        function addSaleProduct() {
+            const code = document.getElementById('sale-product-number').value.trim();
+            const name = document.getElementById('sale-product-name').value.trim();
+            const value = parseFloat(document.getElementById('sale-product-value').value);
+            
+            if (!code || !name || isNaN(value)) {
+                showAlert('Por favor, completa todos los campos correctamente', 'warning');
+                return;
+            }
+            
+            // Verificar si el producto ya existe (por si acaso)
+            const existingProduct = tables[currentTable].find(product => product.code === code);
+            
+            if (existingProduct) {
+                showAlert('Este producto ya existe en la tabla', 'warning');
+                saleProductModal.style.display = 'none';
+                return;
+            }
+            
+            // Añadir el producto como vendido
+            tables[currentTable].push({
+                code: code,
+                name: name,
+                value: value,
+                sold: true // Marcarlo como vendido directamente
+            });
+            
+            localStorage.setItem('clothingTables', JSON.stringify(tables));
+            
+            saleProductModal.style.display = 'none';
+            showAlert('Producto añadido como vendido correctamente', 'success');
             
             // Si estamos en la vista de tabla, actualizarla
             if (!currentTableSection.classList.contains('hidden')) {
